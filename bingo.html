@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Karty 5×7 cm — szablon</title>
+<style>
+  :root{
+    /* rozmiary — łatwo zmieniać */
+    --card-w: 709px;  /*6cm;*/
+    --card-h: 1063px; /*9cm;*/
+    --card-padding: 23px; /*0.2cm;*/
+
+    --title-h: 177px; /*1.5cm;*/      /* wysokość paska tytułu */
+    --img-size: 614px; /*5.2cm;*/     /* bok kwadratowego obrazka */
+    --numbers-h: 142px; /*1.2cm;*/    /* wysokość paska z trzema kratkami */
+    --gap: 24px; /*0.2cm;*/          /* pionowe przerwy między sekcjami */
+    --border-color: #222;
+    --box-radius: 3px;
+    --font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* kontener układu (wirtualna strona) */
+  .page {
+    width: 2129px; /* 2480px;*/  /* 210mm @300dpi */
+    height: 3191px; /* 297mm @300dpi */
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px; /*0.02cm;*/
+    padding: 1px; /*1cm;*/
+    background: #fafafa;
+	
+	/*
+	transform: scale(1);
+    transform-origin: top left;
+	*/
+	
+	margin-bottom: 20px; /* odstęp między stronami w podglądzie */
+    page-break-after: always; /* druk */
+  }
+
+  /* karta */
+  .card {
+    box-sizing: border-box;
+    width: var(--card-w);
+    height: var(--card-h);
+    padding: var(--card-padding);
+    border: 1px solid var(--border-color);
+    border-radius: var(--box-radius);
+    background: white url('img/tlo_bingo.png') repeat center center;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* centrowanie obrazka poziomo */
+    font-family: var(--font-family);
+    /* zapobiega skalowaniu tekstu przez zoom przeglądarki przy cm (nie zawsze potrzebne) */
+  }
+
+  /* Tytuł — stała wysokość, długi tytuł obcinamy na końcu */
+  .card .title {
+    height: var(--title-h);
+    text-align: center;
+    font-weight: 600;
+    font-size: 53px; /*0.45cm;*/
+    margin-bottom: var(--gap);
+  }
+  .card .title span {
+    display: flex;
+	height: 100%;
+    align-items: center;
+  }
+
+  /* Pole obrazka — kwadrat o stałym boku, obraz przycięty/skalowany */
+  .card .image {
+    width: var(--img-size);
+    height: var(--img-size);
+    overflow: hidden;
+    display: block;
+    border-radius: 2px;
+    margin-bottom: var(--gap);
+    flex: 0 0 auto; /* nie rośnie ani nie kurczy */
+    background: #eee;
+    align-self: center;
+  }
+  .card .image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* zachowuje kwadrat i przycina nadmiar */
+    display: block;
+  }
+
+  /* Pole z trzema liczbami */
+  .card .numbers {
+    height: var(--numbers-h);
+    width: calc(100% - 2 * var(--card-padding));
+    display: flex;
+    gap: 0.2cm;
+    align-items: stretch;
+  }
+
+  .card .numbers .num {
+    flex: 1 1 0;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 71px; /*0.6cm;*/
+    letter-spacing: 1px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+
+  /* drobne poprawki stylistyczne (druk/preview) */
+  @media print {
+    body { background: white; }
+    .page { gap: 0.4cm; padding: 0.5cm; }
+    .card { break-inside: avoid; }
+  }
+
+  /* demo — kontener dla przykładowych kart */
+  .demo-note {
+    width: 100%;
+    margin: 0.5cm 0;
+    font-size: 12px;
+    color: #444;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<input type="file" id="csvFile" accept=".csv" />
+<button id="loadBtn">Wczytaj CSV</button>
+<button id="save">Save as image</button>
+
+<!-- "Wirtualna strona" gdzie będziemy dokładać karty obok siebie -->
+<div class="page" id="page"></div>
+
+<script>
+
+/**
+ * createCard(title, imageUrl, numbers)
+ * - title: string
+ * - imageUrl: string (może być data URL lub zdalny obraz)
+ * - numbers: array-like [n1,n2,n3] — liczby lub stringi; zostaną sformatowane do 2 cyfr (np. 5 -> "05")
+ * Zwraca DOM element .card gotowy do wstawienia.
+ */
+function createCard(title, imageUrl, numbers){
+  // defensywne: zapewnij tablicę 3-elementową
+  const nums = Array.from(numbers || []).slice(0,3);
+  while (nums.length < 3) nums.push('');
+
+  // pomoc: formatuj do dwóch cyfr, jeśli to liczba
+  const formatNum = v => {
+    if (v === null || v === undefined || v === '') return '';
+    const s = String(v);
+    // jeśli jest liczba (może być "-1" itd.), spróbuj sparsować
+    const n = Number(v);
+    if (!Number.isNaN(n) && Number.isFinite(n) && Number.isInteger(n)) {
+      const sign = n < 0 ? '-' : '';
+      const abs = Math.abs(n);
+      // ogranicz do 2 cyfr jeśli przekracza 99
+      const two = abs < 100 ? String(abs).padStart(2,'0') : String(abs);
+      return sign + two;
+    }
+    // w przeciwnym razie obetnij albo wyrównaj do 2 znaków (jeśli już string)
+    return s.length <= 2 ? s.padStart(2,' ') : s.slice(0,2);
+  };
+
+  // budowa DOM
+  const card = document.createElement('article');
+  card.className = 'card';
+
+  const h = document.createElement('div');
+  h.className = 'title';
+  const span = document.createElement('span');
+  span.textContent = title || '';
+  h.appendChild(span);
+  card.appendChild(h);
+
+  const imgWrap = document.createElement('div');
+  imgWrap.className = 'image';
+  const img = document.createElement('img');
+  img.alt = title || 'obrazek';
+  img.src = imageUrl || '';
+  imgWrap.appendChild(img);
+  card.appendChild(imgWrap);
+
+  const numbersRow = document.createElement('div');
+  numbersRow.className = 'numbers';
+  nums.forEach(v=>{
+    const n = document.createElement('div');
+    n.className = 'num';
+    n.textContent = formatNum(v);
+    numbersRow.appendChild(n);
+  });
+  card.appendChild(numbersRow);
+
+  return card;
+}
+
+/* --- przykład użycia: generujemy kilka kart i doklejamy do #page --- */
+const page = document.getElementById('page');
+
+// Przykładowe dane
+const samples = [
+  ['Krótki tytuł', 'https://picsum.photos/id/1015/800/600', [1, 2, 3]],
+  ['Bardzo długi tytuł, który powinien zostać obcięty i skończyć się elipsą', 'https://picsum.photos/id/1025/1200/800', [12,34,56]],
+  ['Inny obraz', 'https://picsum.photos/id/1003/600/600', [7,8,9]],
+  ['Brak obrazka', '', [0, 5, 99]],
+  ['Negatywny', 'https://picsum.photos/id/106/800/800', [-1, 2, 3]]
+];
+
+
+
+
+
+
+
+
+function loadSamplesFromCSV(csvText) {
+  const lines = csvText
+    .trim()
+    .split(/\r?\n/)
+    .filter(line => line.trim().length > 0);
+
+  const samples = [];
+
+  for (const line of lines) {
+    const fields = parseCSVLine(line);
+
+    // Spodziewamy się formatu:
+    // title, image, n1, n2, n3
+    const [title, image, n1, n2, n3] = fields;
+
+    samples.push([
+      title,
+      image,
+      [Number(n1), Number(n2), Number(n3)]
+    ]);
+  }
+
+  return samples;
+}
+
+/**
+ * Bardzo solidny parser pojedynczej linii CSV.
+ * Obsługuje:
+ * - pola w "..."
+ * - przecinki w cudzysłowach
+ * - podwójne "" w środku tekstu
+ */
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i+1] === '"') {
+        // podwojony cudzysłów -> dodaj jeden i przeskocz
+        current += '"';
+        i++;
+      } else {
+        // przełącz tryb
+        inQuotes = !inQuotes;
+      }
+    }
+    else if (char === ',' && !inQuotes) {
+      // koniec pola
+      result.push(current);
+      current = "";
+    }
+    else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result;
+}
+
+
+document.getElementById("loadBtn").addEventListener("click", () => {
+  const input = document.getElementById("csvFile");
+  const file = input.files[0];
+
+  if (!file) {
+    alert("Najpierw wybierz plik CSV!");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const csvText = e.target.result;
+
+    // 1) Parsowanie CSV → samples[]
+    const samples = loadSamplesFromCSV(csvText);
+
+    // 2) Wstawienie kart
+    const page = document.getElementById("page");
+    page.innerHTML = ""; // usuń poprzednie
+
+    samples.forEach(([title, image, nums]) => {
+      const card = createCard(title, 'img/'+image, nums);
+      page.appendChild(card);
+    });
+  };
+
+  reader.readAsText(file, "utf-8");
+});
+
+document.getElementById("save").addEventListener("click", () => {
+    html2canvas(document.querySelector('.page'), {
+        scale: 1        // 1:1 pixel export, increase for higher resolution
+        //backgroundColor: null // optional: keep transparency
+    }).then(canvas => {
+        // Create a downloadable PNG
+        const link = document.createElement("a");
+        link.download = 'wide-image.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+});
+
+/* 
+  W przyszłości:
+  - Aby wygenerować więcej elementów, masz funkcję createCard.
+  - Możesz też dynamicznie pobierać obrazy, wstawiać karty do innego kontenera
+    lub dopisać mechanizm paginacji/układu siatki.
+*/
+</script>
+</body>
+</html>

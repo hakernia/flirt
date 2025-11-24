@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Karty flirt</title>
+
+<style>
+  :root{
+    /* rozmiary — łatwo zmieniać */
+    --card-w: 709px;  /*6cm;*/
+    --card-h: 1063px; /*9cm;*/
+    --card-padding: 40px;  /*23px; /*0.2cm;*/
+
+    --title-h: 100px; /*177px; /*1.5cm;*/      /* wysokość paska tytułu */
+    --img-size: 614px; /*5.2cm;*/     /* bok kwadratowego obrazka */
+    --numbers-h: 142px; /*1.2cm;*/    /* wysokość paska z trzema kratkami */
+    --gap: 0px; /*0.2cm;*/          /* pionowe przerwy między sekcjami */
+    --border-color: #eee;
+    --box-radius: 3px;
+    --font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body{
+    font-family: var(--font-family);
+    background: #ececec;
+  }
+
+  .page {
+    width: 2129px; /* 2480px;*/  /* 210mm @300dpi */
+    height: 3191px; /* 297mm @300dpi */
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px; /*0.02cm;*/
+    padding: 1px; /*1cm;*/
+    background: #fafafa;
+	
+	/*
+	transform: scale(1);
+    transform-origin: top left;
+	*/
+	
+	margin-bottom: 20px; /* odstęp między stronami w podglądzie */
+    page-break-after: always; /* druk */
+  }
+
+  .card {
+    box-sizing: border-box;
+    width: var(--card-w);
+    height: var(--card-h);
+    padding: var(--card-padding);
+    border: 0px solid var(--border-color);
+    border-radius: var(--box-radius);
+    background: white url('img/tlo_flirt.png') no-repeat center center;
+    background-size: cover; /* dopasowuje obrazek do wymiarów karty */    
+	display: flex;
+    flex-direction: column;
+    align-items: center; /* centrowanie obrazka poziomo */
+    font-family: var(--font-family);
+    /* zapobiega skalowaniu tekstu przez zoom przeglądarki przy cm (nie zawsze potrzebne) */
+  }
+
+  .title {
+    height: var(--title-h);
+    font-size: 50px; /*0.5cm;*/
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--gap);
+    padding: 0 0.1cm;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    overflow: hidden; /* brak scrolla – zawijanie */
+  }
+
+  .list ol {
+    margin: 0;
+    padding-left: 40px; /*0.5cm;*/
+    font-size: 40px; /*0.38cm;*/
+  }
+
+  .list li {
+    margin-bottom: 0.15cm;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  @media print {
+    body { background: white; }
+    .page { gap: 0.4cm; padding: 0.5cm; }
+    .card { break-inside: avoid; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body>
+
+<input type="file" id="csvFile" accept=".csv" />
+<button id="loadBtn">Wczytaj flirt.csv</button>
+<button id="save">Save as image</button>
+
+<div class="page" id="page"></div>
+
+<script>
+/*
+  Parser pliku flirt.csv, format:
+  - Tytuł
+  Linia 1
+  Linia 2
+  Linia 3
+  - Tytuł 2
+  ...
+*/
+function loadFlirtCSV(text){
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+  const cards = [];
+  let currentTitle = null;
+  let currentList = [];
+
+  for (const line of lines) {
+    if (line.startsWith("-")) {
+      // nowa karta
+      if (currentTitle !== null) {
+        cards.push({ title: currentTitle, items: currentList });
+      }
+      currentTitle = line.substring(1).trim();
+      currentList = [];
+    } else {
+      currentList.push(line);
+    }
+  }
+
+  // ostatnia karta
+  if (currentTitle !== null) {
+    cards.push({ title: currentTitle, items: currentList });
+  }
+
+  return cards;
+}
+
+/*
+  Tworzy kartę FLIRT
+*/
+function createFlirtCard(title, items){
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const h = document.createElement("div");
+  h.className = "title";
+  h.textContent = title;
+  card.appendChild(h);
+
+  const listWrap = document.createElement("div");
+  listWrap.className = "list";
+
+  const ol = document.createElement("ol");
+  items.forEach(t => {
+    const li = document.createElement("li");
+    li.textContent = t;
+    ol.appendChild(li);
+  });
+
+  listWrap.appendChild(ol);
+  card.appendChild(listWrap);
+
+  return card;
+}
+
+document.getElementById("loadBtn").addEventListener("click", () => {
+  const file = document.getElementById("csvFile").files[0];
+  if (!file) {
+    alert("Wybierz flirt.csv!");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const cardsData = loadFlirtCSV(e.target.result);
+
+    const page = document.getElementById("page");
+    page.innerHTML = "";
+
+    cardsData.forEach(card => {
+      const el = createFlirtCard(card.title, card.items);
+      page.appendChild(el);
+    });
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+document.getElementById("save").addEventListener("click", () => {
+    html2canvas(document.querySelector('.page'), {
+        scale: 1        // 1:1 pixel export, increase for higher resolution
+        //backgroundColor: null // optional: keep transparency
+    }).then(canvas => {
+        // Create a downloadable PNG
+        const link = document.createElement("a");
+        link.download = 'wide-image.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+});
+
+</script>
+
+</body>
+</html>
