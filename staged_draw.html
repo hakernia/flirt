@@ -49,6 +49,20 @@
       .controls input[type=text]{width:160px}
       .token{min-width:44px;height:44px;font-size:16px}
     }
+	@keyframes fakeDraw {
+      0%   { transform: scale(0.9); opacity: 0; filter: blur(10px); }
+      40%  { opacity: 1; filter: blur(0); }
+      100% { transform: scale(1.1); opacity: 0; filter: blur(20px); }
+    }
+
+    .fake-anim {
+      position:absolute;
+      font-size:80px;
+      font-weight:800;
+      color:white;
+      text-shadow:0 0 25px rgba(0,0,0,0.6);
+      animation: fakeDraw 1.4s ease-out forwards;
+    }
   </style>
 </head>
 <body>
@@ -198,38 +212,52 @@
         updateHistoryUI();
       }
 
-      function playNumberClip(n){
+      function playNumberClip(realNumber){
         return new Promise((resolve)=>{
-          // choose a video file name convention: videos/NN.mp4 or fallback to simple animation
-          const src = `videos/${n}.mp4`;
-          // try to load; to keep demo friendly we'll attempt to play and if it fails or times out we resolve
-          video.pause();
-          video.src = src;
-          video.muted = true; // allow autoplay on most browsers
-          video.playsInline = true;
-          let resolved = false;
-
-          const cleanup = ()=>{
-            video.onplaying = null; video.onended = null; video.onerror = null; video.pause();
-            if(!resolved){ resolved=true; resolve(); }
-          };
-
-          // when video plays, wait for it to end
-          video.onplaying = ()=>{
-            info.textContent = `Odtwarzanie klipu ${n}`;
-          };
-
-          video.onended = ()=>{ cleanup(); };
-          video.onerror = ()=>{ /* fallback: no file */ cleanup(); };
-
-          // safety timeout: if video doesn't start in 3s, fallback immediately
-          const to = setTimeout(()=>{ if(!resolved){ cleanup(); } }, 3000);
-
-          // try to play (modern browsers require user gesture; Start must be clicked)
-          const p = video.play();
-          if(p && typeof p.then==='function'){
-            p.catch(()=>{ /* autoplay blocked, fallback */ cleanup(); });
-          }
+      
+          // losujemy FAKE liczbę 0–100
+          const fake = Math.floor(Math.random()*101);
+      
+          // najpierw pokazujemy FAKE animację
+          const fakeEl = document.createElement('div');
+          fakeEl.className = 'fake-anim';
+          fakeEl.textContent = fake;
+          document.querySelector('.stage').appendChild(fakeEl);
+      
+          // FAKE ANIM trwa 1.4s, potem usuwamy
+          setTimeout(()=>{
+            fakeEl.remove();
+      
+            // po FAKE ANIM próbujemy odpalić filmik PRAWDZIWEGO numeru
+            const src = `videos/${realNumber}.mp4`;
+      
+            video.pause();
+            video.src = src;
+            video.muted = true;
+            video.playsInline = true;
+      
+            let resolved = false;
+            const cleanup = ()=>{
+              video.onplaying = null;
+              video.onended = null;
+              video.onerror = null;
+              video.pause();
+              if(!resolved){ resolved=true; resolve(); }
+            };
+      
+            video.onplaying = ()=>{
+              info.textContent = `Odtwarzanie klipu ${realNumber}`;
+            };
+            video.onended = ()=>cleanup();
+            video.onerror = ()=>cleanup();
+      
+            // timeout 3s — jeśli pliku brak → od razu kończymy
+            setTimeout(()=>cleanup(), 3000);
+      
+            const p = video.play();
+            if(p && p.catch){ p.catch(()=>cleanup()); }
+      
+          }, 1400);
         });
       }
 
