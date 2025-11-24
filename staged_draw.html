@@ -51,17 +51,17 @@
     }
 	@keyframes fakeDraw {
       0%   { transform: scale(0.9); opacity: 0; filter: blur(10px); }
-      40%  { opacity: 1; filter: blur(0); }
-      100% { transform: scale(1.1); opacity: 0; filter: blur(20px); }
+      100%  { opacity: 1; filter: blur(0); }
+      /*100% { transform: scale(1.1); opacity: 0; filter: blur(20px); }*/
     }
-
+    
     .fake-anim {
       position:absolute;
       font-size:80px;
       font-weight:800;
       color:white;
       text-shadow:0 0 25px rgba(0,0,0,0.6);
-      animation: fakeDraw 1.4s ease-out forwards;
+      animation: fakeDraw 5.4s ease-out forwards;
     }
   </style>
 </head>
@@ -203,63 +203,85 @@
         // pick next number deterministically: take a random element for demo but no replacement
         const idx = Math.floor(Math.random()*pool.length);
         const num = pool.splice(idx,1)[0];
-        drawn.push(num);
+        
         // play video associated with number
         playNumberClip(num).then(()=>{
           // after playback show big number for a moment
+		  drawn.push(num);
           showBigNumber(num);
+          setTimeout(()=>{updateHistoryUI()}, 1000);
         });
-        updateHistoryUI();
       }
 
       function playNumberClip(realNumber){
         return new Promise((resolve)=>{
+          // spectacular fake spin animation
+          const stage = document.querySelector('.stage');
+          const spinEl = document.createElement('div');
+          spinEl.className = 'fake-anim';
+          stage.appendChild(spinEl);
       
-          // losujemy FAKE liczbę 0–100
-          const fake = Math.floor(Math.random()*101);
+          let t = 0;
+          const duration = 5000; // total animation time
+          const start = performance.now();
       
-          // najpierw pokazujemy FAKE animację
-          const fakeEl = document.createElement('div');
-          fakeEl.className = 'fake-anim';
-          fakeEl.textContent = fake;
-          document.querySelector('.stage').appendChild(fakeEl);
+          function easeOutQuad(x){ return 1 - (1 - x) * (1 - x); }
       
-          // FAKE ANIM trwa 1.4s, potem usuwamy
-          setTimeout(()=>{
-            fakeEl.remove();
+          function frame(now){
+            const progress = Math.min(1, (now - start) / duration);
+            const eased = easeOutQuad(progress);
       
-            // po FAKE ANIM próbujemy odpalić filmik PRAWDZIWEGO numeru
-            const src = `videos/${realNumber}.mp4`;
+            // speed decreases over time
+            const interval = 50 + eased * 50; // slows from 50ms to ~300ms
+            if(now - t > interval){
+              t = now;
+              spinEl.textContent = Math.floor(Math.random()*101);
+            }
       
-            video.pause();
-            video.src = src;
-            video.muted = true;
-            video.playsInline = true;
+            // flicker visual effect
+            spinEl.style.opacity = 0.6 + Math.random()*0.4;
+            spinEl.style.transform = `scale(${0.9 + Math.random()*0.2})`;
       
-            let resolved = false;
-            const cleanup = ()=>{
-              video.onplaying = null;
-              video.onended = null;
-              video.onerror = null;
-              video.pause();
-              if(!resolved){ resolved=true; resolve(); }
-            };
-      
-            video.onplaying = ()=>{
-              info.textContent = `Odtwarzanie klipu ${realNumber}`;
-            };
-            video.onended = ()=>cleanup();
-            video.onerror = ()=>cleanup();
-      
-            // timeout 3s — jeśli pliku brak → od razu kończymy
-            setTimeout(()=>cleanup(), 3000);
-      
-            const p = video.play();
-            if(p && p.catch){ p.catch(()=>cleanup()); }
-      
-          }, 1400);
+            if(progress < 1){ requestAnimationFrame(frame); }
+            else {
+              spinEl.remove();
+              // after spin, play real clip
+              const src = `videos/${realNumber}.mp4`;
+              video.pause(); video.src = src; video.muted = true; video.playsInline = true;
+              let resolved = false;
+              const cleanup = ()=>{
+                video.onplaying = null; video.onended = null; video.onerror = null;
+                video.pause(); if(!resolved){ resolved=true; resolve(); }
+              };
+              video.onplaying = ()=>{ info.textContent = `Odtwarzanie klipu ${realNumber}`; };
+              video.onended = ()=>cleanup();
+              video.onerror = ()=>cleanup();
+              setTimeout(()=>cleanup(),3000);
+              const p = video.play(); if(p && p.catch) p.catch(()=>cleanup());
+            }
+          }
+          requestAnimationFrame(frame);
         });
-      }
+      };
+
+//          // when video plays, wait for it to end
+//          video.onplaying = ()=>{
+//            info.textContent = `Odtwarzanie klipu ${n}`;
+//          };
+//
+//          video.onended = ()=>{ cleanup(); };
+//          video.onerror = ()=>{ /* fallback: no file */ cleanup(); };
+//
+//          // safety timeout: if video doesn't start in 3s, fallback immediately
+//          const to = setTimeout(()=>{ if(!resolved){ cleanup(); } }, 3000);
+//
+//          // try to play (modern browsers require user gesture; Start must be clicked)
+//          const p = video.play();
+//          if(p && typeof p.then==='function'){
+//            p.catch(()=>{ /* autoplay blocked, fallback */ cleanup(); });
+//          }
+//        });
+//      }
 
       function showBigNumber(n){
         bigNumber.textContent = n;
