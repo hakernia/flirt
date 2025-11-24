@@ -3,17 +3,16 @@ import os
 import argparse
 
 
-def split_lines_into_files(input_path, output_dir="output"):
+def split_lines_into_files(input_path, output_dir="output", chunk_size=9):
     # --- Wczytaj wszystkie linie ---
     with open(input_path, "r", encoding="utf-8") as f:
         lines = [line.rstrip("\n") for line in f]
 
     os.makedirs(output_dir, exist_ok=True)
 
-    chunk_size = 9
     file_counter = 1
 
-    # --- Dziel po 9 linii ---
+    # --- Dziel po chunk_size linii ---
     for i in range(0, len(lines), chunk_size):
         chunk = lines[i:i+chunk_size]
 
@@ -21,7 +20,7 @@ def split_lines_into_files(input_path, output_dir="output"):
         first_line = i + 1
         last_line = i + len(chunk)
 
-        filename = f"bingo-{first_line}-{last_line}.csv"
+        filename = f"bingo-{first_line:03d}-{last_line:03d}.csv"
         output_path = os.path.join(output_dir, filename)
 
         with open(output_path, "w", encoding="utf-8") as f:
@@ -35,7 +34,7 @@ def split_lines_into_files(input_path, output_dir="output"):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Dzieli plik na mniejsze pliki po 9 linii."
+        description="Dzieli plik na mniejsze pliki po N liniach."
     )
 
     parser.add_argument(
@@ -50,11 +49,17 @@ def main():
         help="Katalog wyjściowy (domyślnie: output)"
     )
 
+    parser.add_argument(
+        "-c", "--chunk-size",
+        type=int,
+        default=9,
+        help="Ilość linii w jednym pliku wyjściowym (domyślnie 9)"
+    )
+
     args = parser.parse_args()
 
-    split_lines_into_files(args.input, args.output)
+    split_lines_into_files(args.input, args.output, args.chunk_size)
 
 
 if __name__ == "__main__":
     main()
-
