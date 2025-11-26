@@ -7,11 +7,10 @@
   <style>
     :root{
       --bg:#0f1724; --card:#0b1220; --accent:#07c; --muted:#94a3b8; --white:#ffffff;
-      --big-font:clamp(48px, 10vw, 160px);
+      /*--big-font:clamp(48px, 40vw, 160px);*/
+	  --big-font:clamp(48px, 80vw, 360px);
     }
-    /* GWARANCJA PEŁNEJ WYSOKOŚCI */
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#061020);font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
-    /* KLUCZOWA ZMIANA: Zamiast min-height:100% używamy height:100% dla .app */
     .app{height:100%;display:flex;flex-direction:column} 
 
     header{padding:12px 18px;color:var(--white);display:flex;align-items:center;gap:18px}
@@ -23,14 +22,13 @@
     .controls button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
     .controls button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
 
-    /* KLUCZOWA ZMIANA: flex:1 w main sprawia, że zajmuje całą dostępną przestrzeń */
     main{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 
     /* obszar obrazu tła */
     .stage{
         position:relative;
         width:100%;
-        height:100%; /* Gwarancja 100% wysokości wewnątrz main (flex:1) */
+        height:100%; 
         display:flex;
         align-items:center;
         justify-content:center
@@ -47,22 +45,19 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        background-size: cover; /* Zachowanie proporcji i pokrycie */
+        /*background-size: cover; */
+		background-size: auto 100%;
         background-position: center;
         background-repeat: no-repeat;
-        /* ustawienie początkowe i przejście */
         opacity: 0; 
         transition: opacity 1s ease-in-out; 
-        /* efekt wizualny */
         filter: brightness(0.7) grayscale(0.2);
     }
     
-    /* Nowy, aktywny obraz */
     .background-image.active {
         opacity: 1;
     }
     
-    /* Stary obraz, który się ukrywa */
     .background-image.old {
         opacity: 0;
     }
@@ -71,13 +66,54 @@
     .big-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
     .big-number{
       font-weight:800;color:var(--white);text-shadow:0 6px 40px rgba(2,6,23,0.7);
-      transform:scale(0.92);opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
-      font-size:var(--big-font);line-height:0.9
+      font-size:var(--big-font); 
+      line-height:0.9;
+      /* Domyślny stan, gdy nic się nie dzieje, lub gdy końcowy wynik zniknął */
+      /*transform:scale(0.92);*/
+	  opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
     }
+    
+    /* Stan po pełnym wylosowaniu i na początku animacji, gdy losujemy */
     .big-number.show{opacity:1;transform:scale(1)}
 
+    /* Nowe: Keyframes dla animacji losowania */
+    @keyframes drawSpinAnimation {
+        0%    { opacity: 0; filter: blur(50px); transform: scale(0.2); }
+        1%   { opacity: 0; filter: blur(50px); transform: scale(0.2); } 
+        90%   { opacity: 1; filter: blur(0px); transform: scale(1); } 
+        100%  { opacity: 1; filter: blur(0); transform: scale(1); } 
+    }
+
+    /* Nowe: Klasa dla animacji losowania (zastępuje fake-anim) */
+    .big-number.drawing {
+        /* Nadpisz domyślne przejścia dla ręcznej animacji CSS */
+        transition: none; 
+        animation: drawSpinAnimation 8s ease-out forwards;
+        /* Ustawienia ostateczne dla stanu po animacji, zanim zostanie usunięta klasa */
+        opacity: 1; 
+        /*transform: scale(2);*/
+    }
+
+
     /* bottom list */
-    .history{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.35));padding:12px 18px;display:flex;align-items:center;justify-content:center}
+ /*   .history{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.35));padding:12px 18px;display:flex;align-items:center;justify-content:center}
+*/
+.history{
+    position: absolute; /* ZMIANA: Aby nie wpływała na przepływ dokumentu */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    /* Pamiętaj, że history-list (wewnątrz) nadal ma padding.
+       Tutaj ustawiamy tło tylko dla samej listy, a nie całego paska */
+    background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent); /* Lepszy gradient dla przejścia u dołu */
+    padding-bottom: 20px; /* Dodatkowe miejsce na dole dla lepszego wyglądu */
+    padding-top: 60px; /* Dodatkowy padding na górze dla efektu gradientu */
+    display:flex;
+    align-items:flex-end; /* Upewnij się, że lista jest na dole */
+    justify-content:center;
+    pointer-events: none; /* Umożliwia klikanie przez ten obszar, jeśli to konieczne. Opcjonalne! */
+    z-index: 10; /* Upewnij się, że jest nad tłem */
+}
     .history-list{display:flex;gap:10px;overflow:hidden;padding:6px 8px;border-radius:12px;background:#071423;border:1px solid rgba(255,255,255,0.03)}
     .token{min-width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#071e2b;color:var(--white);font-weight:700;font-size:18px;border:1px solid rgba(255,255,255,0.03)}
 
@@ -89,19 +125,6 @@
       .controls input[type=text]{width:160px}
       .token{min-width:44px;height:44px;font-size:16px}
     }
-	@keyframes fakeDraw {
-      0%   { transform: scale(0.9); opacity: 0; filter: blur(10px); }
-      100%  { opacity: 1; filter: blur(0); }
-    }
-    
-    .fake-anim {
-      position:absolute;
-      font-size:80px;
-      font-weight:800;
-      color:white;
-      text-shadow:0 0 25px rgba(0,0,0,0.6);
-      animation: fakeDraw 5.4s ease-out forwards;
-    }
   </style>
 </head>
 <body>
@@ -110,7 +133,7 @@
       <div class="brand">Losowanie etapami — demo</div>
       <div class="controls">
         <label title="Wczytaj zakres liczb lub listę (np. 1-90 lub 1,2,5,7)">Wejście:
-          <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="1-90">
+          <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="3,7,13,15,18,21,33,24,69"> <!-- ,12,4,27,65 -->
         </label>
         <label title="Ile sekund między kolejnymi losowaniami (max 900)">Interwał (s):
           <input id="intervalSec" type="number" min="1" max="900" value="10">
@@ -168,8 +191,8 @@
       ];
       let currentBgIndex = -1; 
       const TRANSITION_DURATION = 1000; 
-      const FAKE_DRAW_DURATION = 5400; 
-      const SHOW_NUMBER_AFTER_MS = 3000; 
+      const FAKE_DRAW_DURATION = 10000; // Czas trwania animacji CSS (drawSpinAnimation)
+      const SHOW_NUMBER_AFTER_MS = 5000; 
 
       let pool = []; 
       let drawn = []; 
@@ -252,7 +275,9 @@
         pool = parseInput(inputEl.value);
         drawn = [];
         updateHistoryUI();
-        bigNumber.classList.remove('show');
+        // Usuwamy klasę 'show', aby element bigNumber był ukryty (opacity: 0)
+        bigNumber.classList.remove('show', 'drawing');
+        bigNumber.textContent = ''; // czyścimy zawartość
         
         // Inicjalizacja/reset tła do pierwszego obrazu
         while (bgContainer.firstChild) {
@@ -311,63 +336,69 @@
         const idx = Math.floor(Math.random()*pool.length);
         const num = pool.splice(idx,1)[0];
         
-        // *** WAŻNA ZMIANA: Usunięto automatyczną zmianę tła przy losowaniu ***
-        // changeBackground(); 
-
         playNumberClip(num).then(()=>{
           drawn.push(num);
-          showBigNumber(num);
-          setTimeout(()=>{updateHistoryUI()}, SHOW_NUMBER_AFTER_MS + 200);
+          // showBigNumber(num) jest wywoływane wewnątrz playNumberClip
+          //setTimeout(()=>{updateHistoryUI()}, SHOW_NUMBER_AFTER_MS);
+		  updateHistoryUI();
         });
       }
 
+      /**
+       * Funkcja losowania (fake spin) - teraz używa bigNumber.
+       */
       function playNumberClip(realNumber){
         return new Promise((resolve)=>{
-          const stage = document.querySelector('.stage');
-          const spinEl = document.createElement('div');
-          spinEl.className = 'fake-anim';
-          stage.appendChild(spinEl);
           
-          let t = 0;
+          // 1. Reset i ustawienie do animacji
+          bigNumber.classList.remove('show');
+          bigNumber.textContent = '';
+          //bigNumber.style.animation = 'none'; // usuwamy stare style animacji
+          // Dodajemy klasę, która uruchamia animację CSS
+          void bigNumber.offsetWidth; // force reflow/re-render to restart animation
+          bigNumber.classList.add('drawing');
+          
           const duration = FAKE_DRAW_DURATION; 
-          const start = performance.now();
           
-          function easeOutQuad(x){ return 1 - (1 - x) * (1 - x); }
+          // 2. Proste interwały do przewijania losowych liczb
+          const spinInterval = setInterval(() => {
+              bigNumber.textContent = Math.floor(Math.random()*101); 
+          }, 80); 
           
-          function frame(now){
-            const progress = Math.min(1, (now - start) / duration);
-            const eased = easeOutQuad(progress);
-            
-            const interval = 50 + eased * 50; 
-            if(now - t > interval){
-              t = now;
-              spinEl.textContent = Math.floor(Math.random()*101);
-            }
-            
-            spinEl.style.opacity = 0.6 + Math.random()*0.4;
-            spinEl.style.transform = `scale(${0.9 + Math.random()*0.2})`;
-            
-            if(progress < 1){ requestAnimationFrame(frame); }
-            else {
-              spinEl.textContent = realNumber;
-              spinEl.style.opacity = 1;
-              spinEl.style.transform = `scale(1)`;
-              spinEl.style.animation = 'none'; 
-
+          // 3. Zegar kończący animację
+          setTimeout(() => {
+              clearInterval(spinInterval); 
+              
+              // Wyświetl prawdziwą wylosowaną liczbę
+              bigNumber.textContent = realNumber;
+              
+              // Zatrzymanie animacji i przejście do stanu "show"
+              bigNumber.classList.remove('drawing');
+              // Dodajemy klasę 'show', która ma proste przejście,
+              // aby utrzymać liczbę na ekranie po animacji spin
+              bigNumber.classList.add('show'); 
+              
+              // Upewniamy się, że po usunięciu klasy 'drawing' 
+              // liczby mają prawidłowe, końcowe style
+              //bigNumber.style.opacity = 1;
+              //bigNumber.style.transform = `scale(1)`;
+              //bigNumber.style.filter = `blur(0)`;
+              
+              // Timeout na wyświetlanie liczby przed zniknięciem
               setTimeout(() => {
-                  spinEl.remove();
+                  bigNumber.classList.remove('show');
                   resolve(); 
-              }, 500); 
-            }
-          }
-          requestAnimationFrame(frame);
+              }, SHOW_NUMBER_AFTER_MS);
+          }, duration); 
         });
       };
 
+      // Zmieniamy showBigNumber, aby tylko kontrolowała zniknięcie liczby po animacji,
+      // ale w nowej logice jest już to zawarte w playNumberClip.
+      // Pozostawiamy dla spójności, ale nie jest używana bezpośrednio.
       function showBigNumber(n){
-        bigNumber.textContent = n;
-        bigNumber.classList.add('show');
-        setTimeout(()=> bigNumber.classList.remove('show'), SHOW_NUMBER_AFTER_MS);
+        // Ta funkcja jest teraz zintegrowana w playNumberClip
+        // Jeśli byłaby potrzebna oddzielnie, użyłaby bigNumber.classList.add('show');
       }
 
       function updateHistoryUI(){
