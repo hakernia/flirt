@@ -3,14 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Losowanie etapami — demo</title>
+  <title>Losowanie etapami — demo z tłem obrazowym</title>
   <style>
     :root{
       --bg:#0f1724; --card:#0b1220; --accent:#07c; --muted:#94a3b8; --white:#ffffff;
       --big-font:clamp(48px, 10vw, 160px);
     }
+    /* GWARANCJA PEŁNEJ WYSOKOŚCI */
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#061020);font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
-    .app{min-height:100%;display:flex;flex-direction:column}
+    /* KLUCZOWA ZMIANA: Zamiast min-height:100% używamy height:100% dla .app */
+    .app{height:100%;display:flex;flex-direction:column} 
 
     header{padding:12px 18px;color:var(--white);display:flex;align-items:center;gap:18px}
     .brand{font-weight:700;font-size:18px}
@@ -21,11 +23,49 @@
     .controls button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
     .controls button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
 
+    /* KLUCZOWA ZMIANA: flex:1 w main sprawia, że zajmuje całą dostępną przestrzeń */
     main{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 
-    /* video area */
-    .stage{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-    video#stageVideo{max-width:100%;max-height:100%;display:block;filter:brightness(0.95);}
+    /* obszar obrazu tła */
+    .stage{
+        position:relative;
+        width:100%;
+        height:100%; /* Gwarancja 100% wysokości wewnątrz main (flex:1) */
+        display:flex;
+        align-items:center;
+        justify-content:center
+    }
+
+    .background-image-container{
+        position: absolute;
+        inset: 0; 
+        overflow: hidden;
+    }
+
+    .background-image{
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover; /* Zachowanie proporcji i pokrycie */
+        background-position: center;
+        background-repeat: no-repeat;
+        /* ustawienie początkowe i przejście */
+        opacity: 0; 
+        transition: opacity 1s ease-in-out; 
+        /* efekt wizualny */
+        filter: brightness(0.7) grayscale(0.2);
+    }
+    
+    /* Nowy, aktywny obraz */
+    .background-image.active {
+        opacity: 1;
+    }
+    
+    /* Stary obraz, który się ukrywa */
+    .background-image.old {
+        opacity: 0;
+    }
 
     /* big number overlay */
     .big-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
@@ -50,19 +90,18 @@
       .token{min-width:44px;height:44px;font-size:16px}
     }
 	@keyframes fakeDraw {
-      0%   { transform: scale(0.9); opacity: 0; filter: blur(10px); }
-      100%  { opacity: 1; filter: blur(0); }
-      /*100% { transform: scale(1.1); opacity: 0; filter: blur(20px); }*/
-    }
-    
-    .fake-anim {
-      position:absolute;
-      font-size:80px;
-      font-weight:800;
-      color:white;
-      text-shadow:0 0 25px rgba(0,0,0,0.6);
-      animation: fakeDraw 5.4s ease-out forwards;
-    }
+      0%   { transform: scale(0.9); opacity: 0; filter: blur(10px); }
+      100%  { opacity: 1; filter: blur(0); }
+    }
+    
+    .fake-anim {
+      position:absolute;
+      font-size:80px;
+      font-weight:800;
+      color:white;
+      text-shadow:0 0 25px rgba(0,0,0,0.6);
+      animation: fakeDraw 5.4s ease-out forwards;
+    }
   </style>
 </head>
 <body>
@@ -80,15 +119,15 @@
         <button id="pauseBtn" class="ghost">Pause</button>
         <button id="forceBtn" class="ghost">Draw now</button>
         <button id="resetBtn" class="ghost">Reset</button>
+        <button id="changeBgBtn" class="ghost" title="Zmień aktualne tło na następne z listy">Change Background</button>
       </div>
     </header>
 
     <main>
       <div class="stage">
-        <!-- hidden video element that will play per-number clip -->
-        <video id="stageVideo" playsinline muted></video>
+        <div id="backgroundImageContainer" class="background-image-container">
+            </div>
 
-        <!-- overlay shows big number after / during video -->
         <div class="big-overlay"><div id="bigNumber" class="big-number"></div></div>
 
         <div class="info" id="infoPanel">Idle — ready</div>
@@ -109,25 +148,87 @@
       const pauseBtn = document.getElementById('pauseBtn');
       const forceBtn = document.getElementById('forceBtn');
       const resetBtn = document.getElementById('resetBtn');
-      const video = document.getElementById('stageVideo');
+      const changeBgBtn = document.getElementById('changeBgBtn'); 
       const bigNumber = document.getElementById('bigNumber');
       const info = document.getElementById('infoPanel');
       const historyList = document.getElementById('historyList');
+      const bgContainer = document.getElementById('backgroundImageContainer'); 
 
-      let pool = []; // numbers still available
-      let drawn = []; // drawn numbers order
-      let timer = null; // countdown interval
-      let remaining = 0; // seconds left
+      // Konfiguracja obrazów tła
+      const BACKGROUND_IMAGES = [
+          'tla/_00b2df47-9888-4503-a556-5f06bf0d1db5.jpeg',
+          'tla/_0ad35ede-5ae8-4ea0-88cc-3f2173545050.jpeg',
+          'tla/_0b846e62-fd54-4338-8f71-7885a17aea48.jpeg',
+          'tla/_0b92deeb-ac76-46d2-b007-ccd46e59bacd.jpeg',
+          'tla/_0c041337-745f-4810-bf3a-9382654f4a03.jpeg',
+          'tla/_0d36b047-9188-4eeb-a8dc-e0ddb5384fbe.jpeg',
+          'tla/_0d9d9605-47fa-4385-8568-1650655f1198.jpeg',
+          'tla/_0f8b190c-5da3-4345-b94f-5e1bfd08e5cb.jpeg',
+          'tla/_0f9c666d-4341-487f-840d-7e15f88ba7b5.png'
+      ];
+      let currentBgIndex = -1; 
+      const TRANSITION_DURATION = 1000; 
+      const FAKE_DRAW_DURATION = 5400; 
+      const SHOW_NUMBER_AFTER_MS = 3000; 
+
+      let pool = []; 
+      let drawn = []; 
+      let timer = null; 
+      let remaining = 0; 
       let running = false;
       let paused = false;
 
       const MAX_HISTORY = 10;
-      const SHOW_NUMBER_AFTER_MS = 3000; // show big number duration
+      
+      /**
+       * Zmienia obraz tła z płynnym przejściem.
+       */
+      function changeBackground(nextImageSrc = null) {
+          if (BACKGROUND_IMAGES.length === 0) return Promise.resolve();
+
+          const oldImage = bgContainer.querySelector('.background-image.active');
+
+          // 1. Ustalanie następnego obrazu
+          if (!nextImageSrc) {
+              currentBgIndex = (currentBgIndex + 1) % BACKGROUND_IMAGES.length;
+              nextImageSrc = BACKGROUND_IMAGES[currentBgIndex];
+          }
+
+          // 2. Tworzenie nowego elementu obrazu
+          const nextImage = document.createElement('div');
+          nextImage.className = 'background-image';
+          nextImage.style.backgroundImage = `url('${nextImageSrc}')`;
+          
+          // 3. Dodanie nowego obrazu
+          bgContainer.appendChild(nextImage);
+          
+          return new Promise(resolve => {
+              
+              // 4. Rozpoczęcie przejścia
+              setTimeout(() => {
+                  nextImage.classList.add('active'); 
+                  
+                  if (oldImage) {
+                      oldImage.classList.remove('active');
+                      oldImage.classList.add('old'); 
+                  }
+                  
+              }, 50); 
+              
+              // 5. Sprzątanie po zakończeniu przejścia
+              setTimeout(() => {
+                  if (oldImage) {
+                      bgContainer.removeChild(oldImage);
+                  }
+                  resolve();
+              }, TRANSITION_DURATION + 100); 
+          });
+      }
+
 
       function parseInput(txt){
         txt = (txt||'').trim();
         if(!txt) return [];
-        // allow comma-separated or range like 1-90, or mixed
         const parts = txt.split(/[ ,;]+/);
         const set = new Set();
         parts.forEach(p=>{
@@ -152,7 +253,14 @@
         drawn = [];
         updateHistoryUI();
         bigNumber.classList.remove('show');
-        video.pause(); video.removeAttribute('src'); video.load();
+        
+        // Inicjalizacja/reset tła do pierwszego obrazu
+        while (bgContainer.firstChild) {
+            bgContainer.removeChild(bgContainer.firstChild);
+        }
+        currentBgIndex = -1;
+        changeBackground();
+
         running = false; paused=false;
         info.textContent = `Gotowe — ${pool.length} w puli`;
         startBtn.textContent = 'Start';
@@ -178,7 +286,7 @@
 
       function clampInterval(){
         let v = parseInt(intervalEl.value,10) || 10;
-        if(v<1) v=1; if(v>900) v=900; // keep max ~15min
+        if(v<1) v=1; if(v>900) v=900; 
         intervalEl.value = v;
         return v;
       }
@@ -200,88 +308,61 @@
 
       function doDrawStage(){
         if(pool.length===0){ info.textContent='Koniec puli — brak więcej liczb.'; running=false; startBtn.textContent='Start'; stopTimer(); return; }
-        // pick next number deterministically: take a random element for demo but no replacement
         const idx = Math.floor(Math.random()*pool.length);
         const num = pool.splice(idx,1)[0];
         
-        // play video associated with number
+        // *** WAŻNA ZMIANA: Usunięto automatyczną zmianę tła przy losowaniu ***
+        // changeBackground(); 
+
         playNumberClip(num).then(()=>{
-          // after playback show big number for a moment
-		  drawn.push(num);
+          drawn.push(num);
           showBigNumber(num);
-          setTimeout(()=>{updateHistoryUI()}, 1000);
+          setTimeout(()=>{updateHistoryUI()}, SHOW_NUMBER_AFTER_MS + 200);
         });
       }
 
       function playNumberClip(realNumber){
         return new Promise((resolve)=>{
-          // spectacular fake spin animation
           const stage = document.querySelector('.stage');
           const spinEl = document.createElement('div');
           spinEl.className = 'fake-anim';
           stage.appendChild(spinEl);
-      
+          
           let t = 0;
-          const duration = 5000; // total animation time
+          const duration = FAKE_DRAW_DURATION; 
           const start = performance.now();
-      
+          
           function easeOutQuad(x){ return 1 - (1 - x) * (1 - x); }
-      
+          
           function frame(now){
             const progress = Math.min(1, (now - start) / duration);
             const eased = easeOutQuad(progress);
-      
-            // speed decreases over time
-            const interval = 50 + eased * 50; // slows from 50ms to ~300ms
+            
+            const interval = 50 + eased * 50; 
             if(now - t > interval){
               t = now;
               spinEl.textContent = Math.floor(Math.random()*101);
             }
-      
-            // flicker visual effect
+            
             spinEl.style.opacity = 0.6 + Math.random()*0.4;
             spinEl.style.transform = `scale(${0.9 + Math.random()*0.2})`;
-      
+            
             if(progress < 1){ requestAnimationFrame(frame); }
             else {
-              spinEl.remove();
-              // after spin, play real clip
-              const src = `videos/${realNumber}.mp4`;
-              video.pause(); video.src = src; video.muted = true; video.playsInline = true;
-              let resolved = false;
-              const cleanup = ()=>{
-                video.onplaying = null; video.onended = null; video.onerror = null;
-                video.pause(); if(!resolved){ resolved=true; resolve(); }
-              };
-              video.onplaying = ()=>{ info.textContent = `Odtwarzanie klipu ${realNumber}`; };
-              video.onended = ()=>cleanup();
-              video.onerror = ()=>cleanup();
-              setTimeout(()=>cleanup(),3000);
-              const p = video.play(); if(p && p.catch) p.catch(()=>cleanup());
+              spinEl.textContent = realNumber;
+              spinEl.style.opacity = 1;
+              spinEl.style.transform = `scale(1)`;
+              spinEl.style.animation = 'none'; 
+
+              setTimeout(() => {
+                  spinEl.remove();
+                  resolve(); 
+              }, 500); 
             }
           }
           requestAnimationFrame(frame);
         });
       };
-
-//          // when video plays, wait for it to end
-//          video.onplaying = ()=>{
-//            info.textContent = `Odtwarzanie klipu ${n}`;
-//          };
-//
-//          video.onended = ()=>{ cleanup(); };
-//          video.onerror = ()=>{ /* fallback: no file */ cleanup(); };
-//
-//          // safety timeout: if video doesn't start in 3s, fallback immediately
-//          const to = setTimeout(()=>{ if(!resolved){ cleanup(); } }, 3000);
-//
-//          // try to play (modern browsers require user gesture; Start must be clicked)
-//          const p = video.play();
-//          if(p && typeof p.then==='function'){
-//            p.catch(()=>{ /* autoplay blocked, fallback */ cleanup(); });
-//          }
-//        });
-//      }
 
       function showBigNumber(n){
         bigNumber.textContent = n;
@@ -290,7 +371,6 @@
       }
 
       function updateHistoryUI(){
-        // show last MAX_HISTORY numbers from drawn
         historyList.innerHTML = '';
         const slice = drawn.slice(-MAX_HISTORY);
         slice.forEach(x=>{
@@ -298,30 +378,28 @@
         });
       }
 
-      // forced draw immediately
       function forceDraw(){
-        if(!running){ // if not running, start one draw immediately but do not start timer
+        if(!running){ 
           doDrawStage();
           return;
         }
-        // if paused do nothing
         if(paused) return;
-        // reset countdown and draw now
         remaining = clampInterval();
         doDrawStage();
       }
 
       // attach handlers
-      startBtn.addEventListener('click', ()=>{ if(running) { /* stop? toggle? */ running=false; stopTimer(); startBtn.textContent='Start'; info.textContent='Zatrzymane'; } else start(); });
+      startBtn.addEventListener('click', ()=>{ if(running) { running=false; stopTimer(); startBtn.textContent='Start'; info.textContent='Zatrzymane'; } else start(); });
       pauseBtn.addEventListener('click', ()=> pauseToggle());
       forceBtn.addEventListener('click', ()=> forceDraw());
       resetBtn.addEventListener('click', ()=> resetAll());
+      changeBgBtn.addEventListener('click', ()=> changeBackground()); 
 
       // initialize
       resetAll();
 
       // expose for debugging
-      window._stagedDrawer = { resetAll, doDrawStage, forceDraw };
+      window._stagedDrawer = { resetAll, doDrawStage, forceDraw, changeBackground };
     })();
   </script>
 </body>
