@@ -16,11 +16,45 @@
     header{padding:12px 18px;color:var(--white);display:flex;align-items:center;gap:18px}
     .brand{font-weight:700;font-size:18px}
 
-    .controls{display:flex;gap:12px;align-items:center}
+
+
+    /* Nowa reguła: ukryj header i controls w trybie pełnoekranowym */
+    @media all and (display-mode: fullscreen) {
+        header, 
+        .controls {
+            opacity: 0 !important; /* Ukrywa nagłówek i kontrolki */
+            pointer-events: none !important; /* Uniemożliwia interakcję */
+        }
+    }
+    	/* Uniwersalne reguły ukrywania nagłówka i kontrolek, gdy body lub app jest w trybie pełnoekranowym */
+    :fullscreen header,
+    :-webkit-full-screen header,
+    :-moz-full-screen header,
+    :-ms-fullscreen header {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+    }
+    /*.controls{display:flex;gap:12px;align-items:center}*/
+	.controls{
+        display:flex;
+        flex-wrap: wrap; 
+        gap:12px;
+        align-items:center;
+        
+        /* Usunięto: max-height: 0, opacity: 0, overflow: hidden */
+        /* Jeśli chcesz animacji, musisz ustawić konkretną wysokość: */
+        /* height: auto; transition: opacity 0.3s ease-out; */
+    }
     .controls input[type=number]{width:110px;padding:6px;border-radius:6px;border:1px solid #203040;background:#08121a;color:var(--white)}
     .controls input[type=text]{width:280px;padding:6px;border-radius:6px;border:1px solid #203040;background:#08121a;color:var(--white)}
     .controls button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
     .controls button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+
+    .controls.compact-controls label:not(:has(input[type=number])),
+    .controls.compact-controls input[type=text] {
+        display: none;
+    }
 
     main{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 
@@ -130,13 +164,13 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand">Losowanie etapami — demo</div>
-      <div class="controls">
+      <div class="brand">Maszyna losująca przepowiednie</div>
+      <div class="controls compact-controls">
         <label title="Wczytaj zakres liczb lub listę (np. 1-90 lub 1,2,5,7)">Wejście:
           <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="3,7,13,15,18,21,33,24,69, 28,51,58,67,80"> <!-- ,12,4,27,65 -->
         </label>
         <label title="Ile sekund między kolejnymi losowaniami (max 900)">Interwał (s):
-          <input id="intervalSec" type="number" min="1" max="900" value="10">
+          <input id="intervalSec" type="number" min="1" max="1500" value="20">
         </label>
         <button id="startBtn">Start</button>
         <button id="pauseBtn" class="ghost">Pause</button>
@@ -289,26 +323,26 @@
         changeBackground();
 
         running = false; paused=false;
-        info.textContent = `Gotowe — ${pool.length} w puli`;
+        info.textContent = `Gotowe — możemy zaczynać losowanie fatum.`; //${pool.length} w puli`;
         startBtn.textContent = 'Start';
         pauseBtn.textContent = 'Pause';
       }
 
       function start(){
         if(running){ return; }
-        if(pool.length===0){ info.textContent='Brak liczb w puli!'; return; }
+        if(pool.length===0){ info.textContent='To juz koniec losowań!'; return; }
         running = true; paused = false;
         remaining = clampInterval();
         startTimerTick();
         startBtn.textContent = 'Running';
-        info.textContent = `Będzie losować co ${remaining}s — ${pool.length} dostępnych`;
+        info.textContent = `Będziemy losować co ${remaining}s`;  // — ${pool.length} dostępnych`;
       }
 
       function pauseToggle(){
         if(!running) return;
         paused = !paused;
         pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-        info.textContent = paused ? 'Zatrzymane' : 'Wznawianie';
+        info.textContent = paused ? 'Zatrzymane' : 'Wznowionie';
       }
 
       function clampInterval(){
@@ -323,7 +357,7 @@
         timer = setInterval(()=>{
           if(!running || paused) return;
           remaining -= 1;
-          info.textContent = `Następne losowanie za ${remaining}s — ${pool.length} w puli`;
+          info.textContent = `Następne losowanie za ${remaining}s` // — ${pool.length} w puli`;
           if(remaining<=0){
             remaining = clampInterval();
             doDrawStage();
@@ -334,7 +368,7 @@
       function stopTimer(){ if(timer){ clearInterval(timer); timer=null; } }
 
       function doDrawStage(){
-        if(pool.length===0){ info.textContent='Koniec puli — brak więcej liczb.'; running=false; startBtn.textContent='Start'; stopTimer(); return; }
+        if(pool.length===0){ info.textContent='Losowania zakończone. Los się dokonał.'; running=false; startBtn.textContent='Start'; stopTimer(); return; }
         const idx = Math.floor(Math.random()*pool.length);
         const num = pool.splice(idx,1)[0];
         
