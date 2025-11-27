@@ -63,7 +63,7 @@
     }
 
     /* big number overlay */
-    .big-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .big-overlay{position:absolute;inset:0;display:flex;justify-content:center;pointer-events:none}
     .big-number{
       font-weight:800;color:var(--white);text-shadow:0 6px 40px rgba(2,6,23,0.7);
       font-size:var(--big-font); 
@@ -133,7 +133,7 @@
       <div class="brand">Losowanie etapami — demo</div>
       <div class="controls">
         <label title="Wczytaj zakres liczb lub listę (np. 1-90 lub 1,2,5,7)">Wejście:
-          <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="3,7,13,15,18,21,33,24,69"> <!-- ,12,4,27,65 -->
+          <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="3,7,13,15,18,21,33,24,69, 28,51,58,67,80"> <!-- ,12,4,27,65 -->
         </label>
         <label title="Ile sekund między kolejnymi losowaniami (max 900)">Interwał (s):
           <input id="intervalSec" type="number" min="1" max="900" value="10">
@@ -203,7 +203,7 @@
       let running = false;
       let paused = false;
 
-      const MAX_HISTORY = 10;
+      const MAX_HISTORY = 20;
       
       /**
        * Zmienia obraz tła z płynnym przejściem.
