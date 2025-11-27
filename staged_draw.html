@@ -8,7 +8,7 @@
     :root{
       --bg:#0f1724; --card:#0b1220; --accent:#07c; --muted:#94a3b8; --white:#ffffff;
       /*--big-font:clamp(48px, 40vw, 160px);*/
-	  --big-font:clamp(48px, 80vw, 360px);
+      --big-font:clamp(48px, 80vw, 360px);
     }
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#061020);font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
     .app{height:100%;display:flex;flex-direction:column} 
@@ -23,22 +23,22 @@
         header, 
         .controls {
             opacity: 0 !important; /* Ukrywa nagłówek i kontrolki */
-			display: none;
+            display: none;
             pointer-events: none !important; /* Uniemożliwia interakcję */
         }
     }
-    	/* Uniwersalne reguły ukrywania nagłówka i kontrolek, gdy body lub app jest w trybie pełnoekranowym */
+        /* Uniwersalne reguły ukrywania nagłówka i kontrolek, gdy body lub app jest w trybie pełnoekranowym */
     :fullscreen header,
     :-webkit-full-screen header,
     :-moz-full-screen header,
     :-ms-fullscreen header {
         opacity: 0;
-		display: none;
+        display: none;
         pointer-events: none;
         transition: opacity 0.5s ease;
     }
     /*.controls{display:flex;gap:12px;align-items:center}*/
-	.controls{
+    .controls{
         display:flex;
         flex-wrap: wrap; 
         gap:12px;
@@ -82,7 +82,7 @@
         width: 100%;
         height: 100%;
         /*background-size: cover; */
-		background-size: auto 100%;
+        background-size: auto 100%;
         background-position: center;
         background-repeat: no-repeat;
         opacity: 0; 
@@ -106,7 +106,7 @@
       line-height:0.9;
       /* Domyślny stan, gdy nic się nie dzieje, lub gdy końcowy wynik zniknął */
       /*transform:scale(0.92);*/
-	  opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
+      opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
     }
     
     /* Stan po pełnym wylosowaniu i na początku animacji, gdy losujemy */
@@ -184,7 +184,7 @@
 
     <main>
       <div class="stage">
-	  <audio id="drawSound" src="sound/dzwon.mp3" preload="auto"></audio>
+      <audio id="drawSound" src="sound/dzwon.mp3" preload="auto"></audio>
         <div id="backgroundImageContainer" class="background-image-container">
             </div>
 
@@ -213,7 +213,7 @@
       const info = document.getElementById('infoPanel');
       const historyList = document.getElementById('historyList');
       const bgContainer = document.getElementById('backgroundImageContainer'); 
-	  const drawSound = document.getElementById('drawSound');
+      const drawSound = document.getElementById('drawSound');
 
       // Konfiguracja obrazów tła
       const BACKGROUND_IMAGES = [
@@ -576,20 +576,20 @@
           drawn.push(num);
           // showBigNumber(num) jest wywoływane wewnątrz playNumberClip
           //setTimeout(()=>{updateHistoryUI()}, SHOW_NUMBER_AFTER_MS);
-		  updateHistoryUI();
+          updateHistoryUI();
         });
       }
 
-	function playSound(fname) {
+    function playSound(fname) {
         if (drawSound) {
-			drawSound.src = fname;
+            drawSound.src = fname;
             drawSound.currentTime = 0; // Zawsze zaczynaj od początku
             drawSound.play().catch(error => {
                 console.error("Błąd podczas odtwarzania dźwięku:", error);
                 // Dźwięk może być zablokowany przez przeglądarkę
             });
         }
-	}
+    }
 
 
       /**
@@ -598,9 +598,9 @@
       function playNumberClip(realNumber){
         return new Promise((resolve)=>{
           
-		  // KLUCZOWA ZMIANA: Odtwarzanie dźwięku
-			playSound('sound/dzwon.mp3');
-		  
+          // KLUCZOWA ZMIANA: Odtwarzanie dźwięku
+            playSound('sound/dzwon.mp3');
+          
           // 1. Reset i ustawienie do animacji
           bigNumber.classList.remove('show');
           bigNumber.textContent = '';
@@ -636,7 +636,7 @@
               //bigNumber.style.filter = `blur(0)`;
               
               // Timeout na wyświetlanie liczby przed zniknięciem
-			  setTimeout(() => {playSound(`sound/${realNumber}.mp3`)}, 1000);
+              setTimeout(() => {playSound(`sound/${realNumber}.mp3`)}, 1000);
               setTimeout(() => {
                   bigNumber.classList.remove('show');
                   resolve(); 
@@ -683,7 +683,7 @@
 
       // expose for debugging
       window._stagedDrawer = { resetAll, doDrawStage, forceDraw, changeBackground };
-	  setInterval(()=>{changeBackground()}, 45000);
+      setInterval(()=>{changeBackground()}, 45000);
     })();
   </script>
 </body>
