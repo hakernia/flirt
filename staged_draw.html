@@ -148,6 +148,7 @@
 
     <main>
       <div class="stage">
+	  <audio id="drawSound" src="sound/dzwon.mp3" preload="auto"></audio>
         <div id="backgroundImageContainer" class="background-image-container">
             </div>
 
@@ -176,6 +177,7 @@
       const info = document.getElementById('infoPanel');
       const historyList = document.getElementById('historyList');
       const bgContainer = document.getElementById('backgroundImageContainer'); 
+	  const drawSound = document.getElementById('drawSound');
 
       // Konfiguracja obrazów tła
       const BACKGROUND_IMAGES = [
@@ -344,12 +346,27 @@
         });
       }
 
+	function playSound(fname) {
+        if (drawSound) {
+			drawSound.src = fname;
+            drawSound.currentTime = 0; // Zawsze zaczynaj od początku
+            drawSound.play().catch(error => {
+                console.error("Błąd podczas odtwarzania dźwięku:", error);
+                // Dźwięk może być zablokowany przez przeglądarkę
+            });
+        }
+	}
+
+
       /**
        * Funkcja losowania (fake spin) - teraz używa bigNumber.
        */
       function playNumberClip(realNumber){
         return new Promise((resolve)=>{
           
+		  // KLUCZOWA ZMIANA: Odtwarzanie dźwięku
+			playSound('sound/dzwon.mp3');
+		  
           // 1. Reset i ustawienie do animacji
           bigNumber.classList.remove('show');
           bigNumber.textContent = '';
@@ -385,6 +402,7 @@
               //bigNumber.style.filter = `blur(0)`;
               
               // Timeout na wyświetlanie liczby przed zniknięciem
+			  setTimeout(() => {playSound(`sound/${realNumber}.mp3`)}, 1000);
               setTimeout(() => {
                   bigNumber.classList.remove('show');
                   resolve(); 
@@ -431,6 +449,7 @@
 
       // expose for debugging
       window._stagedDrawer = { resetAll, doDrawStage, forceDraw, changeBackground };
+	  setInterval(()=>{changeBackground()}, 45000);
     })();
   </script>
 </body>
