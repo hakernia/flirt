@@ -116,7 +116,7 @@
     @keyframes drawSpinAnimation {
         0%    { opacity: 0; filter: blur(50px); transform: scale(0.2); }
         1%   { opacity: 0; filter: blur(50px); transform: scale(0.2); } 
-        90%   { opacity: 1; filter: blur(0px); transform: scale(1); } 
+        90%   { opacity: 1; filter: blur(10px); transform: scale(0.8); } 
         100%  { opacity: 1; filter: blur(0); transform: scale(1); } 
     }
 
@@ -124,7 +124,7 @@
     .big-number.drawing {
         /* Nadpisz domyślne przejścia dla ręcznej animacji CSS */
         transition: none; 
-        animation: drawSpinAnimation 8s ease-out forwards;
+        animation: drawSpinAnimation 18s ease-out forwards;
         /* Ustawienia ostateczne dla stanu po animacji, zanim zostanie usunięta klasa */
         opacity: 1; 
         /*transform: scale(2);*/
@@ -427,7 +427,7 @@
       ];
       let currentBgIndex = -1; 
       const TRANSITION_DURATION = 1000; 
-      const FAKE_DRAW_DURATION = 10000; // Czas trwania animacji CSS (drawSpinAnimation)
+      const FAKE_DRAW_DURATION = 20000; // Czas trwania animacji CSS (drawSpinAnimation)
       const SHOW_NUMBER_AFTER_MS = 5000; 
 
       let pool = []; 
