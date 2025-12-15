@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Losowanie etapami — demo z tłem obrazowym</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#07c; --muted:#94a3b8; --white:#ffffff;
+      /*--big-font:clamp(48px, 40vw, 160px);*/
+      --big-font:clamp(48px, 80vw, 360px);
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#061020);font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    .app{height:100%;display:flex;flex-direction:column} 
+
+    header{padding:12px 18px;color:var(--white);display:flex;align-items:center;gap:18px}
+    .brand{font-weight:700;font-size:18px}
+
+
+
+    /* Nowa reguła: ukryj header i controls w trybie pełnoekranowym */
+    @media all and (display-mode: fullscreen) {
+        header, 
+        .controls {
+            opacity: 0 !important; /* Ukrywa nagłówek i kontrolki */
+            display: none;
+            pointer-events: none !important; /* Uniemożliwia interakcję */
+        }
+    }
+        /* Uniwersalne reguły ukrywania nagłówka i kontrolek, gdy body lub app jest w trybie pełnoekranowym */
+    :fullscreen header,
+    :-webkit-full-screen header,
+    :-moz-full-screen header,
+    :-ms-fullscreen header {
+        opacity: 0;
+        display: none;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+    }
+    /*.controls{display:flex;gap:12px;align-items:center}*/
+    .controls{
+        display:flex;
+        flex-wrap: wrap; 
+        gap:12px;
+        align-items:center;
+        
+        /* Usunięto: max-height: 0, opacity: 0, overflow: hidden */
+        /* Jeśli chcesz animacji, musisz ustawić konkretną wysokość: */
+        /* height: auto; transition: opacity 0.3s ease-out; */
+    }
+    .controls input[type=number]{width:110px;padding:6px;border-radius:6px;border:1px solid #203040;background:#08121a;color:var(--white)}
+    .controls input[type=text]{width:280px;padding:6px;border-radius:6px;border:1px solid #203040;background:#08121a;color:var(--white)}
+    .controls button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
+    .controls button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+
+    .controls.compact-controls label:not(:has(input[type=number])),
+    .controls.compact-controls input[type=text] {
+        display: none;
+    }
+
+    main{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+    /* obszar obrazu tła */
+    .stage{
+        position:relative;
+        width:100%;
+        height:100%; 
+        display:flex;
+        align-items:center;
+        justify-content:center
+    }
+
+    .background-image-container{
+        position: absolute;
+        inset: 0; 
+        overflow: hidden;
+    }
+
+    .background-image{
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        /*background-size: cover; */
+        background-size: auto 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+        opacity: 0; 
+        transition: opacity 1s ease-in-out; 
+        filter: brightness(0.7) grayscale(0.2);
+    }
+    
+    .background-image.active {
+        opacity: 1;
+    }
+    
+    .background-image.old {
+        opacity: 0;
+    }
+
+    /* big number overlay */
+    .big-overlay{position:absolute;inset:0;display:flex;justify-content:center;pointer-events:none}
+    .big-number{
+      font-weight:800;color:var(--white);text-shadow:0 6px 40px rgba(2,6,23,0.7);
+      font-size:var(--big-font); 
+      line-height:0.9;
+      /* Domyślny stan, gdy nic się nie dzieje, lub gdy końcowy wynik zniknął */
+      /*transform:scale(0.92);*/
+      opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
+    }
+    
+    /* Stan po pełnym wylosowaniu i na początku animacji, gdy losujemy */
+    .big-number.show{opacity:1;transform:scale(1)}
+
+    /* Nowe: Keyframes dla animacji losowania */
+    @keyframes drawSpinAnimation {
+        0%    { opacity: 0; filter: blur(50px); transform: scale(0.2); }
+        1%   { opacity: 0; filter: blur(50px); transform: scale(0.2); } 
+        90%   { opacity: 1; filter: blur(10px); transform: scale(0.8); } 
+        100%  { opacity: 1; filter: blur(0); transform: scale(1); } 
+    }
+
+    /* Nowe: Klasa dla animacji losowania (zastępuje fake-anim) */
+    .big-number.drawing {
+        /* Nadpisz domyślne przejścia dla ręcznej animacji CSS */
+        transition: none; 
+        animation: drawSpinAnimation 18s ease-out forwards;
+        /* Ustawienia ostateczne dla stanu po animacji, zanim zostanie usunięta klasa */
+        opacity: 1; 
+        /*transform: scale(2);*/
+    }
+
+
+    /* bottom list */
+ /*   .history{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.35));padding:12px 18px;display:flex;align-items:center;justify-content:center}
+*/
+.history{
+    position: absolute; /* ZMIANA: Aby nie wpływała na przepływ dokumentu */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    /* Pamiętaj, że history-list (wewnątrz) nadal ma padding.
+       Tutaj ustawiamy tło tylko dla samej listy, a nie całego paska */
+    background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent); /* Lepszy gradient dla przejścia u dołu */
+    padding-bottom: 20px; /* Dodatkowe miejsce na dole dla lepszego wyglądu */
+    padding-top: 60px; /* Dodatkowy padding na górze dla efektu gradientu */
+    display:flex;
+    align-items:flex-end; /* Upewnij się, że lista jest na dole */
+    justify-content:center;
+    pointer-events: none; /* Umożliwia klikanie przez ten obszar, jeśli to konieczne. Opcjonalne! */
+    z-index: 10; /* Upewnij się, że jest nad tłem */
+}
+    .history-list{display:flex;gap:10px;overflow:hidden;padding:6px 8px;border-radius:12px;background:#071423;border:1px solid rgba(255,255,255,0.03)}
+    .token{min-width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#071e2b;color:var(--white);font-weight:700;font-size:18px;border:1px solid rgba(255,255,255,0.03)}
+
+    /* small info panel */
+    .info{position:absolute;top:12px;right:12px;background:rgba(2,6,23,0.6);padding:8px 10px;border-radius:8px;color:var(--muted);font-size:13px}
+
+    /* responsive tweaks */
+    @media (max-width:640px){
+      .controls input[type=text]{width:160px}
+      .token{min-width:44px;height:44px;font-size:16px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">Maszyna losująca przepowiednie</div>
+      <div class="controls compact-controls">
+        <label title="Wczytaj zakres liczb lub listę (np. 1-90 lub 1,2,5,7)">Wejście:
+          <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="3,7,13,15,18,21,33,24,69, 28,51,58,67,80"> <!-- ,12,4,27,65 -->
+        </label>
+        <label title="Ile sekund między kolejnymi losowaniami (max 900)">Interwał (s):
+          <input id="intervalSec" type="number" min="1" max="1500" value="600">
+        </label>
+        <button id="startBtn">Start</button>
+        <button id="pauseBtn" class="ghost">Pause</button>
+        <button id="forceBtn" class="ghost">Draw now</button>
+        <button id="resetBtn" class="ghost">Reset</button>
+        <button id="changeBgBtn" class="ghost" title="Zmień aktualne tło na następne z listy">Change Background</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="stage">
+      <audio id="drawSound" src="sound/dzwon.mp3" preload="auto"></audio>
+        <div id="backgroundImageContainer" class="background-image-container">
+            </div>
+
+        <div class="big-overlay"><div id="bigNumber" class="big-number"></div></div>
+
+        <div class="info" id="infoPanel">Idle — ready</div>
+      </div>
+    </main>
+
+    <div class="history">
+      <div class="history-list" id="historyList" aria-live="polite"></div>
+    </div>
+  </div>
+
+<script src="config/tla-local.js"></script>
+<script>
+    // Simple staged drawer
+    (function(){
+      const inputEl = document.getElementById('inputNumbers');
+      const intervalEl = document.getElementById('intervalSec');
+      const startBtn = document.getElementById('startBtn');
+      const pauseBtn = document.getElementById('pauseBtn');
+      const forceBtn = document.getElementById('forceBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const changeBgBtn = document.getElementById('changeBgBtn'); 
+      const bigNumber = document.getElementById('bigNumber');
+      const info = document.getElementById('infoPanel');
+      const historyList = document.getElementById('historyList');
+      const bgContainer = document.getElementById('backgroundImageContainer'); 
+      const drawSound = document.getElementById('drawSound');
+
+      // Konfiguracja obrazów tła
+      const BACKGROUND_IMAGES = window.BACKGROUND_IMAGES || [];
+      let currentBgIndex = -1; 
+      const TRANSITION_DURATION = 1000; 
+      const FAKE_DRAW_DURATION = 20000; // Czas trwania animacji CSS (drawSpinAnimation)
+      const SHOW_NUMBER_AFTER_MS = 5000; 
+
+      let pool = []; 
+      let drawn = []; 
+      let timer = null; 
+      let remaining = 0; 
+      let running = false;
+      let paused = false;
+
+      const MAX_HISTORY = 20;
+      
+      /**
+       * Zmienia obraz tła z płynnym przejściem.
+       */
+      function changeBackground(nextImageSrc = null) {
+          if (BACKGROUND_IMAGES.length === 0) return Promise.resolve();
+
+          const oldImage = bgContainer.querySelector('.background-image.active');
+
+          // 1. Ustalanie następnego obrazu
+          if (!nextImageSrc) {
+              currentBgIndex = (currentBgIndex + 1) % BACKGROUND_IMAGES.length;
+              nextImageSrc = BACKGROUND_IMAGES[currentBgIndex];
+          }
+
+          // 2. Tworzenie nowego elementu obrazu
+          const nextImage = document.createElement('div');
+          nextImage.className = 'background-image';
+          nextImage.style.backgroundImage = `url('${nextImageSrc}')`;
+          
+          // 3. Dodanie nowego obrazu
+          bgContainer.appendChild(nextImage);
+          
+          return new Promise(resolve => {
+              
+              // 4. Rozpoczęcie przejścia
+              setTimeout(() => {
+                  nextImage.classList.add('active'); 
+                  
+                  if (oldImage) {
+                      oldImage.classList.remove('active');
+                      oldImage.classList.add('old'); 
+                  }
+                  
+              }, 50); 
+              
+              // 5. Sprzątanie po zakończeniu przejścia
+              setTimeout(() => {
+                  if (oldImage) {
+                      bgContainer.removeChild(oldImage);
+                  }
+                  resolve();
+              }, TRANSITION_DURATION + 100); 
+          });
+      }
+
+
+      function parseInput(txt){
+        txt = (txt||'').trim();
+        if(!txt) return [];
+        const parts = txt.split(/[ ,;]+/);
+        const set = new Set();
+        parts.forEach(p=>{
+          if(!p) return;
+          if(p.includes('-')){
+            const [a,b] = p.split('-').map(x=>parseInt(x,10));
+            if(Number.isFinite(a) && Number.isFinite(b)){
+              const start = Math.min(a,b), end = Math.max(a,b);
+              for(let i=start;i<=end;i++) set.add(i);
+            }
+          } else {
+            const v = parseInt(p,10);
+            if(Number.isFinite(v)) set.add(v);
+          }
+        });
+        return Array.from(set).sort((a,b)=>a-b);
+      }
+
+      function resetAll(){
+        stopTimer();
+        pool = parseInput(inputEl.value);
+        drawn = [];
+        updateHistoryUI();
+        // Usuwamy klasę 'show', aby element bigNumber był ukryty (opacity: 0)
+        bigNumber.classList.remove('show', 'drawing');
+        bigNumber.textContent = ''; // czyścimy zawartość
+        
+        // Inicjalizacja/reset tła do pierwszego obrazu
+        while (bgContainer.firstChild) {
+            bgContainer.removeChild(bgContainer.firstChild);
+        }
+        currentBgIndex = -1;
+        changeBackground();
+
+        running = false; paused=false;
+        info.textContent = `Gotowe — możemy zaczynać losowanie fatum.`; //${pool.length} w puli`;
+        startBtn.textContent = 'Start';
+        pauseBtn.textContent = 'Pause';
+      }
+
+      function start(){
+        if(running){ return; }
+        if(pool.length===0){ info.textContent='To juz koniec losowań!'; return; }
+        running = true; paused = false;
+        remaining = clampInterval();
+        startTimerTick();
+        startBtn.textContent = 'Running';
+        info.textContent = `Będziemy losować co ${remaining}s`;  // — ${pool.length} dostępnych`;
+      }
+
+      function pauseToggle(){
+        if(!running) return;
+        paused = !paused;
+        pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+        info.textContent = paused ? 'Zatrzymane' : 'Wznowionie';
+      }
+
+      function clampInterval(){
+        let v = parseInt(intervalEl.value,10) || 10;
+        if(v<1) v=1; if(v>900) v=900; 
+        intervalEl.value = v;
+        return v;
+      }
+
+      function startTimerTick(){
+        stopTimer();
+        timer = setInterval(()=>{
+          if(!running || paused) return;
+          remaining -= 1;
+          info.textContent = `Następne losowanie za ${remaining}s` // — ${pool.length} w puli`;
+          if(remaining<=0){
+            remaining = clampInterval();
+            doDrawStage();
+          }
+        }, 1000);
+      }
+
+      function stopTimer(){ if(timer){ clearInterval(timer); timer=null; } }
+
+      function doDrawStage(){
+        if(pool.length===0){ info.textContent='Losowania zakończone. Los się dokonał.'; running=false; startBtn.textContent='Start'; stopTimer(); return; }
+        const idx = Math.floor(Math.random()*pool.length);
+        const num = pool.splice(idx,1)[0];
+        
+        playNumberClip(num).then(()=>{
+          drawn.push(num);
+          // showBigNumber(num) jest wywoływane wewnątrz playNumberClip
+          //setTimeout(()=>{updateHistoryUI()}, SHOW_NUMBER_AFTER_MS);
+          updateHistoryUI();
+        });
+      }
+
+    function playSound(fname) {
+        if (drawSound) {
+            drawSound.src = fname;
+            drawSound.currentTime = 0; // Zawsze zaczynaj od początku
+            drawSound.play().catch(error => {
+                console.error("Błąd podczas odtwarzania dźwięku:", error);
+                // Dźwięk może być zablokowany przez przeglądarkę
+            });
+        }
+    }
+
+
+      /**
+       * Funkcja losowania (fake spin) - teraz używa bigNumber.
+       */
+      function playNumberClip(realNumber){
+        return new Promise((resolve)=>{
+          
+          // KLUCZOWA ZMIANA: Odtwarzanie dźwięku
+            playSound('sound/dzwon.mp3');
+          
+          // 1. Reset i ustawienie do animacji
+          bigNumber.classList.remove('show');
+          bigNumber.textContent = '';
+          //bigNumber.style.animation = 'none'; // usuwamy stare style animacji
+          // Dodajemy klasę, która uruchamia animację CSS
+          void bigNumber.offsetWidth; // force reflow/re-render to restart animation
+          bigNumber.classList.add('drawing');
+          
+          const duration = FAKE_DRAW_DURATION; 
+          
+          // 2. Proste interwały do przewijania losowych liczb
+          const spinInterval = setInterval(() => {
+              bigNumber.textContent = Math.floor(Math.random()*101); 
+          }, 80); 
+          
+          // 3. Zegar kończący animację
+          setTimeout(() => {
+              clearInterval(spinInterval); 
+              
+              // Wyświetl prawdziwą wylosowaną liczbę
+              bigNumber.textContent = realNumber;
+              
+              // Zatrzymanie animacji i przejście do stanu "show"
+              bigNumber.classList.remove('drawing');
+              // Dodajemy klasę 'show', która ma proste przejście,
+              // aby utrzymać liczbę na ekranie po animacji spin
+              bigNumber.classList.add('show'); 
+              
+              // Upewniamy się, że po usunięciu klasy 'drawing' 
+              // liczby mają prawidłowe, końcowe style
+              //bigNumber.style.opacity = 1;
+              //bigNumber.style.transform = `scale(1)`;
+              //bigNumber.style.filter = `blur(0)`;
+              
+              // Timeout na wyświetlanie liczby przed zniknięciem
+              setTimeout(() => {playSound(`sound/${realNumber}.mp3`)}, 1000);
+              setTimeout(() => {
+                  bigNumber.classList.remove('show');
+                  resolve(); 
+              }, SHOW_NUMBER_AFTER_MS);
+          }, duration); 
+        });
+      };
+
+      // Zmieniamy showBigNumber, aby tylko kontrolowała zniknięcie liczby po animacji,
+      // ale w nowej logice jest już to zawarte w playNumberClip.
+      // Pozostawiamy dla spójności, ale nie jest używana bezpośrednio.
+      function showBigNumber(n){
+        // Ta funkcja jest teraz zintegrowana w playNumberClip
+        // Jeśli byłaby potrzebna oddzielnie, użyłaby bigNumber.classList.add('show');
+      }
+
+      function updateHistoryUI(){
+        historyList.innerHTML = '';
+        const slice = drawn.slice(-MAX_HISTORY);
+        slice.forEach(x=>{
+          const el = document.createElement('div'); el.className='token'; el.textContent = x; historyList.appendChild(el);
+        });
+      }
+
+      function forceDraw(){
+        if(!running){ 
+          doDrawStage();
+          return;
+        }
+        if(paused) return;
+        remaining = clampInterval();
+        doDrawStage();
+      }
+
+      // attach handlers
+      startBtn.addEventListener('click', ()=>{ if(running) { running=false; stopTimer(); startBtn.textContent='Start'; info.textContent='Zatrzymane'; } else start(); });
+      pauseBtn.addEventListener('click', ()=> pauseToggle());
+      forceBtn.addEventListener('click', ()=> forceDraw());
+      resetBtn.addEventListener('click', ()=> resetAll());
+      changeBgBtn.addEventListener('click', ()=> changeBackground()); 
+
+      // initialize
+      resetAll();
+
+      // expose for debugging
+      window._stagedDrawer = { resetAll, doDrawStage, forceDraw, changeBackground };
+      setInterval(()=>{changeBackground()}, 45000);
+    })();
+  </script>
+</body>
+</html>
