@@ -8,7 +8,7 @@
     :root{
       --bg:#0f1724; --card:#0b1220; --accent:#07c; --muted:#94a3b8; --white:#ffffff;
       /*--big-font:clamp(48px, 40vw, 160px);*/
-	  --big-font:clamp(48px, 80vw, 360px);
+      --big-font:clamp(48px, 80vw, 360px);
     }
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#061020);font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
     .app{height:100%;display:flex;flex-direction:column} 
@@ -23,20 +23,22 @@
         header, 
         .controls {
             opacity: 0 !important; /* Ukrywa nagłówek i kontrolki */
+            display: none;
             pointer-events: none !important; /* Uniemożliwia interakcję */
         }
     }
-    	/* Uniwersalne reguły ukrywania nagłówka i kontrolek, gdy body lub app jest w trybie pełnoekranowym */
+        /* Uniwersalne reguły ukrywania nagłówka i kontrolek, gdy body lub app jest w trybie pełnoekranowym */
     :fullscreen header,
     :-webkit-full-screen header,
     :-moz-full-screen header,
     :-ms-fullscreen header {
         opacity: 0;
+        display: none;
         pointer-events: none;
         transition: opacity 0.5s ease;
     }
     /*.controls{display:flex;gap:12px;align-items:center}*/
-	.controls{
+    .controls{
         display:flex;
         flex-wrap: wrap; 
         gap:12px;
@@ -80,7 +82,7 @@
         width: 100%;
         height: 100%;
         /*background-size: cover; */
-		background-size: auto 100%;
+        background-size: auto 100%;
         background-position: center;
         background-repeat: no-repeat;
         opacity: 0; 
@@ -104,7 +106,7 @@
       line-height:0.9;
       /* Domyślny stan, gdy nic się nie dzieje, lub gdy końcowy wynik zniknął */
       /*transform:scale(0.92);*/
-	  opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
+      opacity:0;transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1);
     }
     
     /* Stan po pełnym wylosowaniu i na początku animacji, gdy losujemy */
@@ -114,7 +116,7 @@
     @keyframes drawSpinAnimation {
         0%    { opacity: 0; filter: blur(50px); transform: scale(0.2); }
         1%   { opacity: 0; filter: blur(50px); transform: scale(0.2); } 
-        90%   { opacity: 1; filter: blur(0px); transform: scale(1); } 
+        90%   { opacity: 1; filter: blur(10px); transform: scale(0.8); } 
         100%  { opacity: 1; filter: blur(0); transform: scale(1); } 
     }
 
@@ -122,7 +124,7 @@
     .big-number.drawing {
         /* Nadpisz domyślne przejścia dla ręcznej animacji CSS */
         transition: none; 
-        animation: drawSpinAnimation 8s ease-out forwards;
+        animation: drawSpinAnimation 18s ease-out forwards;
         /* Ustawienia ostateczne dla stanu po animacji, zanim zostanie usunięta klasa */
         opacity: 1; 
         /*transform: scale(2);*/
@@ -170,7 +172,7 @@
           <input id="inputNumbers" type="text" placeholder="1-90 or 5,12,23" value="3,7,13,15,18,21,33,24,69, 28,51,58,67,80"> <!-- ,12,4,27,65 -->
         </label>
         <label title="Ile sekund między kolejnymi losowaniami (max 900)">Interwał (s):
-          <input id="intervalSec" type="number" min="1" max="1500" value="20">
+          <input id="intervalSec" type="number" min="1" max="1500" value="600">
         </label>
         <button id="startBtn">Start</button>
         <button id="pauseBtn" class="ghost">Pause</button>
@@ -182,7 +184,7 @@
 
     <main>
       <div class="stage">
-	  <audio id="drawSound" src="sound/dzwon.mp3" preload="auto"></audio>
+      <audio id="drawSound" src="sound/dzwon.mp3" preload="auto"></audio>
         <div id="backgroundImageContainer" class="background-image-container">
             </div>
 
@@ -197,7 +199,8 @@
     </div>
   </div>
 
-  <script>
+<script src="config/tla-local.js"></script>
+<script>
     // Simple staged drawer
     (function(){
       const inputEl = document.getElementById('inputNumbers');
@@ -211,23 +214,13 @@
       const info = document.getElementById('infoPanel');
       const historyList = document.getElementById('historyList');
       const bgContainer = document.getElementById('backgroundImageContainer'); 
-	  const drawSound = document.getElementById('drawSound');
+      const drawSound = document.getElementById('drawSound');
 
       // Konfiguracja obrazów tła
-      const BACKGROUND_IMAGES = [
-          'tla/_00b2df47-9888-4503-a556-5f06bf0d1db5.jpeg',
-          'tla/_0ad35ede-5ae8-4ea0-88cc-3f2173545050.jpeg',
-          'tla/_0b846e62-fd54-4338-8f71-7885a17aea48.jpeg',
-          'tla/_0b92deeb-ac76-46d2-b007-ccd46e59bacd.jpeg',
-          'tla/_0c041337-745f-4810-bf3a-9382654f4a03.jpeg',
-          'tla/_0d36b047-9188-4eeb-a8dc-e0ddb5384fbe.jpeg',
-          'tla/_0d9d9605-47fa-4385-8568-1650655f1198.jpeg',
-          'tla/_0f8b190c-5da3-4345-b94f-5e1bfd08e5cb.jpeg',
-          'tla/_0f9c666d-4341-487f-840d-7e15f88ba7b5.png'
-      ];
+      const BACKGROUND_IMAGES = window.BACKGROUND_IMAGES || [];
       let currentBgIndex = -1; 
       const TRANSITION_DURATION = 1000; 
-      const FAKE_DRAW_DURATION = 10000; // Czas trwania animacji CSS (drawSpinAnimation)
+      const FAKE_DRAW_DURATION = 20000; // Czas trwania animacji CSS (drawSpinAnimation)
       const SHOW_NUMBER_AFTER_MS = 5000; 
 
       let pool = []; 
@@ -376,20 +369,20 @@
           drawn.push(num);
           // showBigNumber(num) jest wywoływane wewnątrz playNumberClip
           //setTimeout(()=>{updateHistoryUI()}, SHOW_NUMBER_AFTER_MS);
-		  updateHistoryUI();
+          updateHistoryUI();
         });
       }
 
-	function playSound(fname) {
+    function playSound(fname) {
         if (drawSound) {
-			drawSound.src = fname;
+            drawSound.src = fname;
             drawSound.currentTime = 0; // Zawsze zaczynaj od początku
             drawSound.play().catch(error => {
                 console.error("Błąd podczas odtwarzania dźwięku:", error);
                 // Dźwięk może być zablokowany przez przeglądarkę
             });
         }
-	}
+    }
 
 
       /**
@@ -398,9 +391,9 @@
       function playNumberClip(realNumber){
         return new Promise((resolve)=>{
           
-		  // KLUCZOWA ZMIANA: Odtwarzanie dźwięku
-			playSound('sound/dzwon.mp3');
-		  
+          // KLUCZOWA ZMIANA: Odtwarzanie dźwięku
+            playSound('sound/dzwon.mp3');
+          
           // 1. Reset i ustawienie do animacji
           bigNumber.classList.remove('show');
           bigNumber.textContent = '';
@@ -436,7 +429,7 @@
               //bigNumber.style.filter = `blur(0)`;
               
               // Timeout na wyświetlanie liczby przed zniknięciem
-			  setTimeout(() => {playSound(`sound/${realNumber}.mp3`)}, 1000);
+              setTimeout(() => {playSound(`sound/${realNumber}.mp3`)}, 1000);
               setTimeout(() => {
                   bigNumber.classList.remove('show');
                   resolve(); 
@@ -483,7 +476,7 @@
 
       // expose for debugging
       window._stagedDrawer = { resetAll, doDrawStage, forceDraw, changeBackground };
-	  setInterval(()=>{changeBackground()}, 45000);
+      setInterval(()=>{changeBackground()}, 45000);
     })();
   </script>
 </body>
